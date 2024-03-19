@@ -96,39 +96,32 @@ router.post("/getcalorieintakebydate", authTokenHandler, async (req, res) => {
   );
 });
 
-router.post(
-  "/getcalllorieintakebylimit",
-  authTokenHandler,
-  async (req, res) => {
-    const { limit } = req.body;
-    const userId = req.userId;
-    const user = await User.findOne({ _id: userId });
-    if (!limit) {
-      return res
-        .status(400)
-        .json(createResponse(false, "Please provide limit"));
-    } else if (limit === "all") {
-      return res.json(
-        createResponse(true, "Calorie intake", user.calorieIntake)
-      );
-    } else {
-      let date = new Date();
-      date.setDate(date.getDate() - parseInt(limit));
-      user.calorieIntake = filterEntriesByDate(
-        user.calorieIntake,
-        new Date(date)
-      );
-
-      return res.json(
-        createResponse(
-          true,
-          ` Calorie intake for the last ${limit} days`,
-          user.calorieIntake
-        )
-      );
-    }
+router.post('/getcalorieintakebylimit', authTokenHandler, async (req, res) => {
+  const { limit } = req.body;
+  const userId = req.userId;
+  const user = await User.findById({ _id: userId });
+  if (!limit) {
+      return res.status(400).json(createResponse(false, 'Please provide limit'));
+  } else if (limit === 'all') {
+      return res.json(createResponse(true, 'Calorie intake', user.calorieIntake));
   }
-);
+  else {
+
+
+      let date = new Date();
+      let currentDate = new Date(date.setDate(date.getDate() - parseInt(limit))).getTime();
+      // 1678910
+
+      user.calorieIntake = user.calorieIntake.filter((item) => {
+          return new Date(item.date).getTime() >= currentDate;
+      })
+
+
+      return res.json(createResponse(true, `Calorie intake for the last ${limit} days`, user.calorieIntake));
+
+
+  }
+})
 router.delete("/deletecalorieintake", authTokenHandler, async (req, res) => {
   const { item, date } = req.body;
   if (!item || !date) {
@@ -144,31 +137,39 @@ router.delete("/deletecalorieintake", authTokenHandler, async (req, res) => {
   await user.save();
   res.json(createResponse(true, "Calorie intake deleted successfully"));
 });
-router.get("/getgoalcalorieintake", authTokenHandler, async (req, res) => {
+router.get('/getgoalcalorieintake', authTokenHandler, async (req, res) => {
   const userId = req.userId;
-  const user = await User.findOne({ _id: userId });
+  const user = await User.findById({ _id: userId });
   let maxCalorieIntake = 0;
-  let heightInCm = parseInt(user.height[user.height.length - 1].height)
-  let weightInKg = parseInt(user.weight[user.weight.length - 1].weight)
-  let age = new Date().getFullYear() - new Date(user.dob).getFullYear()
-  let BMR = 0
-  let gender = user.gender
-  if(gender === 'male'){
-    BMR = 88.362 + (13.397 * weightInKg) + (4.799 * heightInCm) - (5.677 * age)
-  }else if(gender === 'female'){
-    BMR = 447.593 + (9.247 * weightInKg) + (3.098 * heightInCm) - (4.330 * age)
-  }else{
-    BMR = 447.593 + (9.247 * weightInKg) + (3.098 * heightInCm) - (4.330 * age)
+  let heightInCm = parseFloat(user.height[user.height.length - 1].height);
+  let weightInKg = parseFloat(user.weight[user.weight.length - 1].weight);
+  let age = new Date().getFullYear() - new Date(user.dob).getFullYear();
+  let BMR = 0;
+  let gender = user.gender;
+  if (gender == 'male') {
+      BMR = 88.362 + (13.397 * weightInKg) + (4.799 * heightInCm) - (5.677 * age)
+
+  }
+  else if (gender == 'female') {
+      BMR = 447.593 + (9.247 * weightInKg) + (3.098 * heightInCm) - (4.330 * age)
+
+  }
+  else {
+      BMR = 447.593 + (9.247 * weightInKg) + (3.098 * heightInCm) - (4.330 * age)
+  }
+  if (user.goal == 'weightLoss') {
+      maxCalorieIntake = BMR - 500;
+  }
+  else if (user.goal == 'weightGain') {
+      maxCalorieIntake = BMR + 500;
+  }
+  else {
+      maxCalorieIntake = BMR;
   }
 
-   if(user.goal == 'weightLoss'){
-    maxCalorieIntake = BMR - 500
-   } else if(user.goal === 'weightGain'){
-    maxCalorieIntake = BMR + 500
-   }else{
-    maxCalorieIntake = BMR
-   }
-});
+  res.json(createResponse(true, 'max calorie intake', { maxCalorieIntake }));
+
+})
 
 const filterEntriesByDate = (entries, targetDate) => {
   return entries.filter((entry) => {

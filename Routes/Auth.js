@@ -6,7 +6,7 @@ const authTokenHandler = require("../Middlewares/checkAuthToken");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
-
+require("dotenv").config();
 // jqcg ttek ldky zknz
 
 const transporter = nodemailer.createTransport({
@@ -24,7 +24,7 @@ router.get("/test", async (req, res) => {
 });
 
 const CreateResponse = (ok, message, data) => {
-  return ok, message, data;
+  return {ok, message, data}
 };
 router.post("/register", async (req, res, next) => {
   try {
@@ -84,11 +84,11 @@ router.post("/login", async (req, res, next) => {
     if (!user) {
       return res.status(400).json(CreateResponse(false, "Invalid credentials"));
     }
-
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json(CreateResponse(false, "Invalid credentials"));
     }
+
     const authToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET_KEY,
@@ -99,49 +99,49 @@ router.post("/login", async (req, res, next) => {
       process.env.JWT_REFRESH_SECRET_KET,
       { expiresIn: "100m" }
     );
+
     res.cookie("authToken", authToken, { httpOnly: true });
     res.cookie("refreshToken", refreshToken, { httpOnly: true });
-
-    res.status(200).json(CreateResponse(true , 'Login successful',{
+    res.status(200).json(
+      CreateResponse(true, "Login successful", {
         authToken,
-        refreshToken
-    }))
-
-
-  } catch (error) {
-    next(error);
+        refreshToken,
+      })
+    );
+  } catch (err) {
+    next(err);
   }
 });
 router.post("/sendotp", async (req, res) => {
   try {
-    const {email} = req.body
-    const otp = Math.floor(100000 + Math.random() * 900000)
+    const { email } = req.body;
+    const otp = Math.floor(100000 + Math.random() * 900000);
 
     const mailOptions = {
-        from : 'maniteja2601@gmail.com',
-        to:email,
-        subject:'OTP for verification',
-        text:`Your OTP is ${otp}`
-    }
+      from: "maniteja2601@gmail.com",
+      to: email,
+      subject: "OTP for verification",
+      text: `Your OTP is ${otp}`,
+    };
 
-    transporter.sendMail(mailOptions , async(err,info)=>{
-        if(err){
-            console.log(err)
-            res.status(500).json(CreateResponse(false , err.message))
-        }else{
-            res.json(CreateResponse(true , 'OTP sent successfully' , {otp}))
-        }
-    })
+    transporter.sendMail(mailOptions, async (err, info) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json(CreateResponse(false, err.message));
+      } else {
+        res.json(CreateResponse(true, "OTP sent successfully", { otp }));
+      }
+    });
   } catch (error) {
     next(error);
   }
 });
-router.post("/checklogin",authTokenHandler ,async (req, res) => {
+router.post("/checklogin", authTokenHandler, async (req, res) => {
   try {
     res.json({
-        ok:true,
-        message:'User authenticated successfully'
-    })
+      ok: true,
+      message: "User authenticated successfully",
+    });
   } catch (error) {
     next(error);
   }

@@ -19,11 +19,13 @@ const adminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-adminSchema.pre("save", async (next) => {
-  const admin = this;
-  if (admin.isModified("password")) {
-    admin.password = await bcrypt.hash(admin.password, 8);
+adminSchema.pre('save', async function (next) {
+  const user = this;
+
+  if (user.isModified('password')) {
+      user.password = await bcrypt.hash(user.password, 8);
   }
+
   next();
 });
 
